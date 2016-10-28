@@ -3,6 +3,7 @@ from scipy.ndimage.measurements import center_of_mass, maximum_position
 from scipy.signal import argrelmax, savgol_filter
 import sys
 import numpy as np
+import new_functions as fn
 import pylab as pl
 % matplotlib inline
 
@@ -24,17 +25,22 @@ class SmartCentroider(object):
     
     def __init__(self, filelist, bands=None):
         assert len(filelist)>0
+        # default setup values go here, all can be overridden
+        
         self.filelist = filelist
         self.n_tof_files = 50
 
         self.bands = bands
         self.use_CoM_as_centroid = True
         self.inc_diagnoal_joins = True
-        self.peak_range = 15
-        self.skiplines = 1
+        self.peak_range = 5
+        self.skiplines = 0
         self.files_have_bunchIDs = False
-        self.ToF_noise_threshold = 20
+        self.ToF_noise_threshold = 2
+        self.savgol_window_length = 5
         self.sample_TOF_raw = None
+        self.npix_per_cluster_cut = (4,1e9)
+        self.gaussian_size = 1.5
         self.sample_TOF_smoothed = None
         self.peaks = []
         self.peak_indices = []
@@ -90,7 +96,7 @@ class SmartCentroider(object):
         xs = xs[first_non_zero:last_non_zero+1] # trim array
         ys = ys[first_non_zero:last_non_zero+1]
 
-        new_ys = savgol_filter(ys,5,3) # smooth the ToF spectrum
+        new_ys = savgol_filter(ys,self.savgol_window_length,3) # smooth the ToF spectrum
 
         self.sample_TOF_smoothed = np.zeros((len(xs),2), dtype=np.int64)
         self.sample_TOF_smoothed[:,0] = xs
@@ -98,6 +104,7 @@ class SmartCentroider(object):
 
     def CalculateBands(self):
         self.peak_indices = argrelmax(self.sample_TOF_smoothed[:,1], axis=0, order=self.peak_range) # find local maxima, range of 5 each side
+        if self.DEBUG>=3: print 'Found %s peaks at %s'%(len(self.peaks), self.peaks); sys.stdout.flush()
         self.peaks = [self.sample_TOF_smoothed[_,0] for _ in self.peak_indices[0]] # Get peak location from indices
         self.bands = [] # generate banks from peaks - need to take the midpoints though!
         minval = np.min(self.sample_TOF_smoothed[:,0])
@@ -145,7 +152,7 @@ class SmartCentroider(object):
         
         
     def FindClusters(self):
-        if self.DEBUG>=2: print 'Using %s bands...'%len(bands);sys.stdout.flush()
+        if self.DEBUG>=2: print 'Using %s bands...'%len(self.bands);sys.stdout.flush()
 
         if self.inc_diagnoal_joins:
             struct_el=[[1,1,1],[1,1,1],[1,1,1]] # for including diagonal connections as well
@@ -165,7 +172,7 @@ class SmartCentroider(object):
 
             segmentation, segments = ndimage.label(img, struct_el) # find clusters
             if self.DEBUG>2: print 'Found %s clusters without using band information'%segments;sys.stdout.flush()
-            if self.DEBUG>3: self.DEBUGPlot(segmentation, 'Segmented image:')
+            if self.DEBUG>3: self.DebugPlot(segmentation, 'Segmented image not using bands:')
 
             seg_sum = 0
             for bandnum,(tmin, tmax) in enumerate(self.bands): # Process each band in turn
@@ -174,12 +181,12 @@ class SmartCentroider(object):
                 # twice and the other not at all!
                 band_img[band_img > tmax] = 0 # threshold the new image
                 band_img[band_img <= tmin] = 0
-                if self.DEBUG>=3: title = self.DEBUGPlot(band_img, 'Band %s (%s - %s) image:'%(bandnum, tmin, tmax))
+                if self.DEBUG>=3: title = self.DebugPlot(band_img, 'Band %s (%s - %s) image:'%(bandnum, tmin, tmax))
 
                 # find clusters
                 segmentation, segments = ndimage.label(band_img, struct_el) 
                 seg_sum += segments
-                if self.DEBUG>=3: print 'Found %s segs in band %s (%s - %s)'%(segments,i, tmin, tmax);sys.stdout.flush()
+                if self.DEBUG>=3: print 'Found %s segs in band %s (%s - %s)'%(segments, bandnum, tmin, tmax);sys.stdout.flush()
 
                 # Get centroids from clusters using specified method:
                 if self.use_CoM_as_centroid: # use center of mass weighting
@@ -202,7 +209,7 @@ class SmartCentroider(object):
                         self.ret[fileID]['ys'].append(max_pos[1])
                         self.ret[fileID]['npixs'].append('????')
 
-                if self.DEBUG >2: print 'CoMs for band %s: %s'(band_num, CoMs);sys.stdout.flush()
+                if self.DEBUG>=2: print 'CoMs for band %s: %s'%(bandnum, CoMs);sys.stdout.flush()
             #     index = (np.asarray([_[0] for _ in CoMs]),np.asarray([[_[1] for _ in CoMs]]))
             #     codes = img[CoMs]
 
@@ -210,7 +217,7 @@ class SmartCentroider(object):
         print 'Finished smart centroiding %s files...'%(len(self.filelist));sys.stdout.flush()
 
     
-    def MakeVMIsFromBands(self, custom_bands=None, npix_per_cluster_cut=4, use_gaussians=False, gaussian_size=1.5, round_centroid_coords=False, only_use_n_files=1e15):
+    def MakeVMIsFromBands(self, custom_bands=None, use_gaussians=False, round_centroid_coords=False, only_use_n_files=1e15):
         '''Produce VMI images from centroided clusters for each band defined.
         Custom bands can be provided here, and will not overwrite the main band definitions.
         If using Gaussians, exact centroids are always used.
@@ -220,7 +227,7 @@ class SmartCentroider(object):
         
         if custom_bands is None: custom_bands = self.bands # default to the defined bands if they're not provided
         self.VMI_images = [np.zeros((256,256), dtype=np.float64) for _ in custom_bands] # create images
-        
+
 #         now = time.time()
         for band_num, t_range in enumerate(custom_bands): # loop over bands
             if self.DEBUG>=3:print 'Processing band %s of %s'%(band_num+1, len(bands)); sys.stdout.flush()
@@ -233,10 +240,10 @@ class SmartCentroider(object):
                                       self.ret[datafilename]['ys'],
                                       self.ret[datafilename]['ts'],
                                       self.ret[datafilename]['npixs']):
-                    if npix<npix_per_cluster_cut: continue # apply cluster threshold
+                    if (npix<self.npix_per_cluster_cut[0]) or (npix>self.npix_per_cluster_cut[1]): continue # apply cluster threshold
                     if t >= t_range[0] and t<t_range[1]: # check cluster is within band
                         if use_gaussians: # add a gaussian if using them
-                            self.VMI_images[band_num] += fn.makeGaussian(256,1,gaussian_size,[x,y])
+                            self.VMI_images[band_num] += fn.makeGaussian(256,1,self.gaussian_size,[x,y])
                         else: # otherwise, make coordinate integers in the correct way and increment that pixel
                             if round_centroid_coords:
                                 x = int(np.round(x,0))
@@ -260,10 +267,13 @@ class SmartCentroider(object):
         assert xs[1]-xs[0]==1 #ensure x-axis space is exactly 1
 
         ys += ndimage.histogram(all_ts,minval,maxval,bins = (maxval-minval)+1)
-        print sum(ys)
-  
-        f = pl.figure(figsize=[12,4]) 
-        pl.plot(xs, ys)
+        
+        self.main_TOF = np.zeros((len(xs),2), dtype=np.int64)
+        self.main_TOF[:,0] = xs
+        self.main_TOF[:,1] = ys
+
+        #         print sum(ys)
+#         f = pl.figure(figsize=[12,4]) 
 
         
     def PrintBandsForEditing(self, one_band_per_line=True):
@@ -276,7 +286,7 @@ class SmartCentroider(object):
         else:
             print 'bands = %s'%self.bands
             
-    def DebugPlot(data, title=''):
+    def DebugPlot(self, data, title=''):
         print title; sys.stdout.flush()
         f = pl.figure(figsize=[8,8]) 
         pl.imshow(data)
