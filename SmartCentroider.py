@@ -5,7 +5,6 @@ import sys
 import numpy as np
 import new_functions as fn
 import pylab as pl
-% matplotlib inline
 
 class SmartCentroider(object):
     '''A class for smart centroiding TimepixCam data.
