@@ -71,7 +71,7 @@ class SmartCentroider(object):
 
         tof_imgs = []
         for filename in tof_fileset: # load images
-            tof_imgs.append(fn.TimepixFileToImage(filename, skiplines=self.skiplines))
+            tof_imgs.append(fn.TimepixFileToImage(filename, skiplines=self.skiplines, t_min=TMIN, t_max=TMAX))
         maxval = int(np.max(tof_imgs)) # get ranges for histogram
         minval = int(np.min([np.min(_[_>0]) for _ in tof_imgs])) # minumum which is >0 over all images
 
@@ -171,7 +171,7 @@ class SmartCentroider(object):
                 fileID = filename
             self.ret[fileID]={'xs':[],'ys':[],'ts':[],'npixs':[]}
 
-            img = fn.TimepixFileToImage(filename, skiplines=self.skiplines)
+            img = fn.TimepixFileToImage(filename, skiplines=self.skiplines, t_min=TMIN, t_max=TMAX)
 
             segmentation, segments = ndimage.label(img, struct_el) # find clusters
             if self.DEBUG>2: print 'Found %s clusters without using band information'%segments;sys.stdout.flush()
