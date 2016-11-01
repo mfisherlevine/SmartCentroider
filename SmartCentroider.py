@@ -26,29 +26,33 @@ class SmartCentroider(object):
         assert len(filelist)>0
         # default setup values go here, all can be overridden
         
-        self.filelist = filelist
-        self.n_tof_files = 50
+        self.__dict__['filelist'] = filelist
+        self.__dict__['n_tof_files'] = 50
+        self.__dict__['bands'] = bands
+        self.__dict__['use_CoM_as_centroid'] = True
+        self.__dict__['inc_diagnoal_joins'] = True
+        self.__dict__['peak_range'] = 5
+        self.__dict__['skiplines'] = 0
+        self.__dict__['files_have_bunchIDs'] = False
+        self.__dict__['ToF_noise_threshold'] = 2
+        self.__dict__['savgol_window_length'] = 5
+        self.__dict__['sample_TOF_raw'] = None
+        self.__dict__['npix_per_cluster_cut'] = (4,1e9)
+        self.__dict__['gaussian_size'] = 1.5
+        self.__dict__['sample_TOF_smoothed'] = None
+        self.__dict__['peaks'] = []
+        self.__dict__['peak_indices'] = []
+        self.__dict__['ret'] = {}
+        self.__dict__['TMIN'] = 0
+        self.__dict__['TMAX'] = 11810
+        self.__dict__['main_TOF'] = None
+        self.__dict__['DEBUG'] = 1
 
-        self.bands = bands
-        self.use_CoM_as_centroid = True
-        self.inc_diagnoal_joins = True
-        self.peak_range = 5
-        self.skiplines = 0
-        self.files_have_bunchIDs = False
-        self.ToF_noise_threshold = 2
-        self.savgol_window_length = 5
-        self.sample_TOF_raw = None
-        self.npix_per_cluster_cut = (4,1e9)
-        self.gaussian_size = 1.5
-        self.sample_TOF_smoothed = None
-        self.peaks = []
-        self.peak_indices = []
-        self.ret = {}
-
-        self.main_TOF = None
-
-        self.DEBUG = 1
-
+    def __setattr__(self, attribute, value):
+        if not attribute in self.__dict__:
+            print "Cannot set %s" % attribute
+        else:
+            self.__dict__[attribute] = value
         
     def MakeSampleTOF(self):
         '''Build a set of files to use for making the ToF.
