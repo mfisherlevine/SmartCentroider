@@ -296,11 +296,11 @@ class SmartCentroider(object):
         pl.show()
         
                       
-    def ShowAllVMIs(self, vmin=None, vmax=None, cmap='jet'):
+    def ShowAllVMIs(self, vmin=None, vmax=None, cmap='jet', white_background=False, white_background_threshold=0.1):
         for image in self.VMI_images:
-            self.ShowVMIimage(image, vmin=vmin, vmax=vmax, cmap=cmap)
+            self.ShowVMIimage(image, vmin=vmin, vmax=vmax, cmap=cmap,  white_background=white_background, white_background_threshold=white_background_threshold)
                             
-    def ShowVMIimage(self, image, vmin=None, vmax=None, cmap='jet', title = '', savefig=''):
+    def ShowVMIimage(self, image, vmin=None, vmax=None, cmap='jet', title = '', savefig='', white_background=False, white_background_threshold=0.1):
         import numpy as np
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -322,7 +322,11 @@ class SmartCentroider(object):
             vmin = min(_ for _ in tmp if _ > 0)
             print 'Auto vmin = %s'%vmin
 
-        im = ax.imshow(image, vmin=vmin, vmax=vmax, cmap=cmap, interpolation='nearest')
+        display_image = image.copy()
+        if white_background:
+            display_image[display_image<=white_background_threshold]=np.nan
+
+        im = ax.imshow(display_image, vmin=vmin, vmax=vmax, cmap=cmap, interpolation='nearest')
         ax.set_title(title)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
