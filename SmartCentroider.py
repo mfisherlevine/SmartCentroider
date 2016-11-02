@@ -324,6 +324,7 @@ class SmartCentroider(object):
 
         display_image = image.copy()
         if white_background:
+            vmin = max(vmin, white_background_threshold)
             display_image[display_image<=white_background_threshold]=np.nan
 
         im = ax.imshow(display_image, vmin=vmin, vmax=vmax, cmap=cmap, interpolation='nearest')
