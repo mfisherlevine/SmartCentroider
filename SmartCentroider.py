@@ -47,6 +47,7 @@ class SmartCentroider(object):
         self.__dict__['TMAX'] = 11810
         self.__dict__['main_TOF'] = None
         self.__dict__['DEBUG'] = 1
+        self.__dict__['VMI_images'] = []
 
     def __setattr__(self, attribute, value):
         if not attribute in self.__dict__:
@@ -343,7 +344,6 @@ class SmartCentroider(object):
 #         pl.show()
         
     def run(self):
-        
         self.MakeSampleTOF()
         if self.DEBUG>=2:
             print 'Raw ToF spectrum for sample files'
@@ -352,14 +352,13 @@ class SmartCentroider(object):
             print 'Smoothed, noise suppressed and truncated ToF spectrum for sample files'
             self.ShowTOF(self.sample_TOF_smoothed)
         
-        
         if not self.bands:
             self.CalculateBands()
         if self.DEBUG>=0: self.ShowBands()
     
         self.FindClusters()
+        self.BuildMainTOF()
         self.MakeVMIsFromBands()
         self.ShowAllVMIs()
 
-        
-        return self.ret.copy()
+        # return self.ret.copy()
