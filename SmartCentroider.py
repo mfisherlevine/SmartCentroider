@@ -278,9 +278,6 @@ class SmartCentroider(object):
         self.main_TOF[:,0] = xs
         self.main_TOF[:,1] = ys
 
-        #         print sum(ys)
-#         f = pl.figure(figsize=[12,4]) 
-
         
     def PrintBandsForEditing(self, one_band_per_line=True):
         '''Print out the band definitions in a format useful for editing.'''
@@ -299,9 +296,9 @@ class SmartCentroider(object):
         pl.show()
         
                       
-    def ShowAllVMIs(self):
+    def ShowAllVMIs(self, vmin=None, vmax=None, cmap='jet'):
         for image in self.VMI_images:
-            self.ShowVMIimage(image)
+            self.ShowVMIimage(image, vmin=vmin, vmax=vmax, cmap=cmap)
                             
     def ShowVMIimage(self, image, vmin=None, vmax=None, cmap='jet', title = '', savefig=''):
         import numpy as np
@@ -325,14 +322,11 @@ class SmartCentroider(object):
             vmin = min(_ for _ in tmp if _ > 0)
             print 'Auto vmin = %s'%vmin
 
-            
-        
         im = ax.imshow(image, vmin=vmin, vmax=vmax, cmap=cmap, interpolation='nearest')
         ax.set_title(title)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         pl.colorbar(im, cax=cax)        
-        
         
         if savefig: fig.savefig(savefig)
         return im  
