@@ -20,15 +20,15 @@ class SmartCentroider(object):
         for k, v in data_source.__dict__.items():
             self.__dict__[k] = v
         return self
-        
     
-    def __init__(self, filelist, bands=None):
+    def __init__(self, filelist):
         assert len(filelist)>0
-        # default setup values go here, all can be overridden
+        # all variables must be declared here in order to be class variables
+        # default values go here, all can be overridden
         
         self.__dict__['filelist'] = filelist
         self.__dict__['n_tof_files'] = 50
-        self.__dict__['bands'] = bands
+        self.__dict__['bands'] = None
         self.__dict__['use_CoM_as_centroid'] = True
         self.__dict__['inc_diagnoal_joins'] = True
         self.__dict__['peak_range'] = 5
@@ -49,11 +49,37 @@ class SmartCentroider(object):
         self.__dict__['DEBUG'] = 1
         self.__dict__['VMI_images'] = []
 
+        if type(filelist)==str:
+            import time
+            import cPickle as pickle
+            now = time.time()
+            pickle_file = open(filelist, 'rb')
+            print 'Loading from %s...'%filelist
+            class_contents = pickle.load(pickle_file)
+            pickle_file.close()
+            print 'Loaded in %.2fs from %s'%(time.time()-now, filelist)
+            for k, v in class_contents.__dict__.items():
+                self.__dict__[k] = v
+
     def __setattr__(self, attribute, value):
         if not attribute in self.__dict__:
             print "Cannot set %s" % attribute
         else:
             self.__dict__[attribute] = value
+
+    def SaveToPickle(self, filename):
+        import time
+        import cPickle as pickle
+        now = time.time()
+        pickle_file = open(filename, 'wb')
+        pickle.dump(self, pickle_file, pickle.HIGHEST_PROTOCOL)
+        pickle_file.close()
+        print 'Saved to %s in %.2fs'%(filename, time.time()-now)
+
+
+    #########################################################
+    #   Real code starts here   #############################
+    #########################################################
         
     def MakeSampleTOF(self):
         '''Build a set of files to use for making the ToF.
@@ -341,7 +367,18 @@ class SmartCentroider(object):
 #         f = pl.figure(figsize=[8,8])
 #         pl.imshow(image)
 #         pl.show()
-        
+    def GetClusterSizeList(self):
+        cluster_sizes = []
+        for k, v in self.ret.items():
+            cluster_sizes.extend(v['npixs'])
+        return cluster_sizes
+
+    def PlotClusterSizeHistogram(self):
+        import pylab as plt
+        cluster_sizes = GetClusterSizeList(self)
+        plt.figure(figsize=(12,4))
+        plt.hist(cluster_sizes, bins = 50, range=(0,50)) # hardcoded, with binsize==1
+
     def run(self):
         self.MakeSampleTOF()
         if self.DEBUG>=2:
