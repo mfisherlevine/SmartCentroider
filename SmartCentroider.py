@@ -48,6 +48,7 @@ class SmartCentroider(object):
         self.__dict__['main_TOF'] = None
         self.__dict__['DEBUG'] = 1
         self.__dict__['VMI_images'] = []
+        self.__dict__['auto_offset'] = 200
 
         if type(filelist)==str:
             import time
@@ -324,9 +325,13 @@ class SmartCentroider(object):
         pl.show()
         
                       
-    def ShowAllVMIs(self, vmin=None, vmax=None, cmap='jet', white_background=False, white_background_threshold=0.1):
-        for image in self.VMI_images:
-            self.ShowVMIimage(image, vmin=vmin, vmax=vmax, cmap=cmap,  white_background=white_background, white_background_threshold=white_background_threshold)
+    def ShowAllVMIs(self, vmin=None, vmax=None, cmap='jet', white_background=False, white_background_threshold=0.1, save_path=None):
+        for im_num, image in enumerate(self.VMI_images):
+            if save_path:
+                savefig = save_path + 'VMI_%s.png'%im_num
+            else:
+                savefig = None
+            self.ShowVMIimage(image, vmin=vmin, vmax=vmax, cmap=cmap,  white_background=white_background, white_background_threshold=white_background_threshold, savefig=savefig)
                             
     def ShowVMIimage(self, image, vmin=None, vmax=None, cmap='jet', title = '', savefig='', white_background=False, white_background_threshold=0.1):
         import numpy as np
@@ -334,15 +339,13 @@ class SmartCentroider(object):
 
         fig = pl.figure(figsize = [10,10])
         ax = fig.add_subplot(111)
-#         ax.set_xlim([YMIN,YMAX])
-#         ax.set_ylim([XMIN,XMAX])
 
         if vmax == 'auto':
-            element = (256*256) - 200
+            element = (256*256) - self.auto_offset - 1
             tmp = image.flatten()
             tmp.sort()
             vmax = tmp[element]
-            vmin = tmp[200]
+            vmin = tmp[self.auto_offset]
             print 'Auto vmax = %s, real max = %s'%(vmax, np.max(image))
 
         if vmin == 'auto':
