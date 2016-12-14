@@ -222,24 +222,26 @@ class SmartCentroider(object):
 
                 # Get centroids from clusters using specified method:
                 if self.use_CoM_as_centroid: # use center of mass weighting
-                    # TODO: check whether cluster 0 is included in CoMs
-                    # TODO: check order of these, i.e. if x,y,t will be coherent
-                    CoMs = center_of_mass(band_img, segmentation, [_ for _ in xrange(1,segments+1)]) #TODO: replace with range(1,segments+1) ??
+                    com_img = np.zeros_like(band_img) # make an array with ones at all hits, zeros everywhere else
+                    com_img[np.nonzero(band_img)] = 1 # otherwise you weight the CoM by the pixel value, not one
+                    CoMs = center_of_mass(com_img, segmentation, [_ for _ in xrange(1, segments+1)])
+
                     # NB do not replace with enumerate, you need to know the actual number for each cluster - think about it.
-                    for clust_num in xrange(1, segments): # cluster 0 = background so skip it
+                    for clust_num in xrange(1, segments+1): # cluster 0 = background so skip it
                         clust_pix_index = np.where(segmentation==clust_num) # find pixels associated with cluster
                         self.ret[fileID]['ts'].append(np.max(img[clust_pix_index]))
-                        self.ret[fileID]['xs'].append(CoMs[clust_num][0])
-                        self.ret[fileID]['ys'].append(CoMs[clust_num][1])
+                        self.ret[fileID]['xs'].append(CoMs[clust_num-1][0]+0.5) # note these are zero-based from before, so need to -1
+                        self.ret[fileID]['ys'].append(CoMs[clust_num-1][1]+0.5)
                         self.ret[fileID]['npixs'].append(len(clust_pix_index[0]))
 
                 else: # Take the earliest timecode in the cluster as the centroid
                     max_positions = maximum_position(band_img, segmentation, [_ for _ in xrange(1,segments+1)])
-                    for max_pos in max_positions: # Stepping through together, so def. coherent
-                        self.ret[fileID]['ts'].append(img[max_pos]) # TODO XXXX: I think this is wrong, should be same as logic above
-                        self.ret[fileID]['xs'].append(max_pos[0]) 
-                        self.ret[fileID]['ys'].append(max_pos[1])
-                        self.ret[fileID]['npixs'].append('????')
+                    for clust_num in xrange(1, segments+1): # cluster 0 = background so skip it
+                        self.ret[fileID]['ts'].append(img[max_positions[clust_num-1]])
+                        self.ret[fileID]['xs'].append(max_positions[clust_num-1][0] +.5) 
+                        self.ret[fileID]['ys'].append(max_positions[clust_num-1][1] +.5)
+                        npix = len(segmentation[segmentation==(clust_num)])
+                        self.ret[fileID]['npixs'].append(npix)
 
                 if self.DEBUG>=2: print 'CoMs for band %s: %s'%(bandnum, CoMs);sys.stdout.flush()
             #     index = (np.asarray([_[0] for _ in CoMs]),np.asarray([[_[1] for _ in CoMs]]))
@@ -262,7 +264,7 @@ class SmartCentroider(object):
 
 #         now = time.time()
         for band_num, t_range in enumerate(custom_bands): # loop over bands
-            if self.DEBUG>=3:print 'Processing band %s of %s'%(band_num+1, len(bands)); sys.stdout.flush()
+            if self.DEBUG>=3:print 'Processing band %s of %s'%(band_num+1, len(self.bands)); sys.stdout.flush()
             #loop over clusters, file by file, using only first n files if specified.
             for filenum, datafilename in enumerate(sorted(self.ret.keys())[:min(only_use_n_files,len(self.ret.keys()))]): 
 #                 if filenum == 50:
