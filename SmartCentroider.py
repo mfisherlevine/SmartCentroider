@@ -38,6 +38,7 @@ class SmartCentroider(object):
         self.__dict__['savgol_window_length'] = 5
         self.__dict__['sample_TOF_raw'] = None
         self.__dict__['npix_per_cluster_cut'] = (4,1e9)
+        self.__dict__['use_gaussians'] = True
         self.__dict__['gaussian_size'] = 1.5
         self.__dict__['sample_TOF_smoothed'] = None
         self.__dict__['peaks'] = []
@@ -252,7 +253,34 @@ class SmartCentroider(object):
         print 'Finished smart centroiding %s files...'%(len(self.filelist));sys.stdout.flush()
 
     
-    def MakeVMIsFromBands(self, custom_bands=None, use_gaussians=False, round_centroid_coords=False, only_use_n_files=1e15):
+    def MakeSingleVMI(self, band, round_centroid_coords=False, only_use_n_files=1e15):
+        import time
+        ret_img = np.zeros((256,256), dtype=np.float64)
+        now = time.time()
+        for filenum, datafilename in enumerate(sorted(self.ret.keys())[:min(only_use_n_files,len(self.ret.keys()))]): 
+            if filenum == 500:
+                dt = time.time() - now
+                print 'Estimated time for completion is another %.1f seconds...'%(dt * min(only_use_n_files,len(self.ret.keys()))/500.)
+            for x,y,t,npix in zip(self.ret[datafilename]['xs'],
+                                  self.ret[datafilename]['ys'],
+                                  self.ret[datafilename]['ts'],
+                                  self.ret[datafilename]['npixs']):
+                if (npix<self.npix_per_cluster_cut[0]) or (npix>self.npix_per_cluster_cut[1]): continue # apply cluster threshold
+                if t >= band[0] and t<band[1]: # check cluster is within band
+                    if self.use_gaussians: # add a gaussian if using them
+                        ret_img += fn.makeGaussian(256,1,self.gaussian_size,[x,y])
+                    else: # otherwise, make coordinate integers in the correct way and increment that pixel
+                        if round_centroid_coords:
+                            x = int(np.round(x,0))
+                            y = int(np.round(y,0))
+                        else:
+                            x = int(x)
+                            y = int(y)
+                        ret_img[x][y] += 1
+        return ret_img
+
+
+    def MakeVMIsFromBands(self, custom_bands=None, round_centroid_coords=False, only_use_n_files=1e15):
         '''Produce VMI images from centroided clusters for each band defined.
         Custom bands can be provided here, and will not overwrite the main band definitions.
         If using Gaussians, exact centroids are always used.
@@ -277,7 +305,7 @@ class SmartCentroider(object):
                                       self.ret[datafilename]['npixs']):
                     if (npix<self.npix_per_cluster_cut[0]) or (npix>self.npix_per_cluster_cut[1]): continue # apply cluster threshold
                     if t >= t_range[0] and t<t_range[1]: # check cluster is within band
-                        if use_gaussians: # add a gaussian if using them
+                        if self.use_gaussians: # add a gaussian if using them
                             self.VMI_images[band_num] += fn.makeGaussian(256,1,self.gaussian_size,[x,y])
                         else: # otherwise, make coordinate integers in the correct way and increment that pixel
                             if round_centroid_coords:
@@ -321,7 +349,7 @@ class SmartCentroider(object):
     def DebugPlot(self, data, title=''):
         print title; sys.stdout.flush()
         f = pl.figure(figsize=[8,8]) 
-        pl.imshow(data)
+        pl.imshow(data, origin='bl')
         pl.show()
         
                       
@@ -358,7 +386,7 @@ class SmartCentroider(object):
             vmin = max(vmin, white_background_threshold)
             display_image[display_image<=white_background_threshold]=np.nan
 
-        im = ax.imshow(display_image, vmin=vmin, vmax=vmax, cmap=cmap, interpolation='nearest')
+        im = ax.imshow(display_image, vmin=vmin, vmax=vmax, cmap=cmap, interpolation='nearest', origin='bl')
         ax.set_title(title)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
