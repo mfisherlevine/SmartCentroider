@@ -427,7 +427,7 @@ class SmartCentroider(object):
     
         self.FindClusters()
         self.BuildMainTOF()
-        self.MakeVMIsFromBands()
-        self.ShowAllVMIs()
+        # self.MakeVMIsFromBands()
+        # self.ShowAllVMIs()
 
         # return self.ret.copy()
