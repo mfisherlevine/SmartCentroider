@@ -293,7 +293,7 @@ class SmartCentroider(object):
 
 #         now = time.time()
         for band_num, t_range in enumerate(custom_bands): # loop over bands
-            if self.DEBUG>=3:print 'Processing band %s of %s'%(band_num+1, len(self.bands)); sys.stdout.flush()
+            if self.DEBUG>=0:print 'Processing band %s of %s'%(band_num+1, len(self.bands)); sys.stdout.flush()
             #loop over clusters, file by file, using only first n files if specified.
             for filenum, datafilename in enumerate(sorted(self.ret.keys())[:min(only_use_n_files,len(self.ret.keys()))]): 
 #                 if filenum == 50:
